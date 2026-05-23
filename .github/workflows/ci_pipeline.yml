@@ -36,19 +36,28 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and Push Docker Image
-        # Kita wajib memasukkan env credentials di sini juga agar Python bisa login ke DagsHub
         env:
           MLFLOW_TRACKING_URI: https://dagshub.com/adiawaly/MLOps_Food_Delivery.mlflow
           MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
         run: |
-          # 1. Ambil Run ID terbaru langsung dari DagsHub menggunakan Python API
-          RUN_ID=$(python -c "import mlflow; print(mlflow.search_runs(experiment_names=['Food_Delivery_Classification'], order_by=['start_time DESC']).iloc[0]['run_id'])")
+          # 1. Buat script Python sementara untuk mencari Run ID yang SUKSES
+          cat << 'EOF' > get_run_id.py
+          import mlflow
+          runs = mlflow.search_runs(
+              experiment_names=['Food_Delivery_Classification'], 
+              filter_string="status = 'FINISHED'", 
+              order_by=['start_time DESC']
+          )
+          print(runs.iloc[0]['run_id'])
+          EOF
           
-          echo "Berhasil mendapatkan Run ID dari DagsHub: $RUN_ID"
+          # 2. Jalankan script dan simpan hasilnya ke variabel RUN_ID
+          RUN_ID=$(python get_run_id.py)
+          echo "Berhasil mendapatkan Run ID (Sukses) dari DagsHub: $RUN_ID"
           
-          # 2. Build Docker Image
+          # 3. Build Docker Image dari Run ID yang dijamin ada artefaknya
           mlflow models build-docker --model-uri runs:/$RUN_ID/model --name ${{ secrets.DOCKERHUB_USERNAME }}/food-delivery-model:latest
           
-          # 3. Push ke Docker Hub
+          # 4. Push ke Docker Hub
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/food-delivery-model:latest
