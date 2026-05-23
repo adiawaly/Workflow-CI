@@ -1,28 +1,30 @@
 import argparse
 import pandas as pd
-import dagshub
+import os
 import mlflow
 import mlflow.sklearn
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 
-# Inisialisasi argument untuk input path
+# 1. Setup Argumen
 parser = argparse.ArgumentParser()
 parser.add_argument("--data_path", type=str, required=True)
 args = parser.parse_args()
 
-# Inisialisasi DagsHub (otomatis menggunakan environment variables)
-dagshub.init(mlflow=True)
+# 2. Inisialisasi Tracking MLflow Murni (Tanpa dagshub.init)
+# MLflow akan otomatis menggunakan MLFLOW_TRACKING_USERNAME & PASSWORD dari GitHub Secrets
+tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "https://dagshub.com/adiawaly/MLOps_Food_Delivery.mlflow")
+mlflow.set_tracking_uri(tracking_uri)
 mlflow.set_experiment("Food_Delivery_Classification")
 
-# Load Data
+# 3. Load Data
 df = pd.read_csv(args.data_path)
 X = df.drop(columns=['Status_Pesanan'])
 y = df['Status_Pesanan']
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Training
+# 4. Training
 with mlflow.start_run():
     rf = RandomForestClassifier(n_estimators=100, max_depth=5)
     rf.fit(X_train, y_train)
