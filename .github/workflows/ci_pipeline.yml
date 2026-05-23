@@ -28,8 +28,6 @@ jobs:
           MLFLOW_TRACKING_URI: https://dagshub.com/adiawaly/MLOps_Food_Delivery.mlflow
           MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
-          # Kunci agar DagsHub tidak meminta otorisasi browser
-          DAGSHUB_USER_TOKEN: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -38,25 +36,8 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and Push Docker Image
-        env:
-          MLFLOW_TRACKING_URI: https://dagshub.com/adiawaly/MLOps_Food_Delivery.mlflow
-          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
-          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
-          DAGSHUB_USER_TOKEN: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
         run: |
-          cat << 'EOF' > get_run_id.py
-          import mlflow
-          runs = mlflow.search_runs(
-              experiment_names=['Food_Delivery_Classification'], 
-              filter_string="status = 'FINISHED'", 
-              order_by=['start_time DESC']
-          )
-          print(runs.iloc[0]['run_id'])
-          EOF
-          
-          RUN_ID=$(python get_run_id.py)
-          echo "Run ID terbaru yang memiliki model: $RUN_ID"
-          
-          mlflow models build-docker --model-uri runs:/$RUN_ID/model --name ${{ secrets.DOCKERHUB_USERNAME }}/food-delivery-model:latest
+          # Build Docker langsung dari file lokal hasil jalan pintas kita!
+          mlflow models build-docker --model-uri ./local_model_output --name ${{ secrets.DOCKERHUB_USERNAME }}/food-delivery-model:latest
           
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/food-delivery-model:latest
